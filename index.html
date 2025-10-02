@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLOCKCHAIN SECURITY ANALYZER v3.14 - [PROTOTYPE]</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        
+        body {
+            background: #0a0a0a;
+            color: #00ff00;
+            overflow-x: hidden;
+            position: relative;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 255, 0, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(0, 255, 0, 0.03) 0%, transparent 20%);
+        }
+
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                transparent 50%,
+                rgba(0, 255, 0, 0.03) 51%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 1000;
+            animation: scanline 2s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+
+        .glitch-text {
+            position: relative;
+            display: inline-block;
+        }
+
+        .glitch-text::before,
+        .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .glitch-text::before {
+            left: 2px;
+            text-shadow: -2px 0 #ff00ff;
+            clip: rect(24px, 550px, 90px, 0);
+            animation: glitch-anim 5s infinite linear alternate-reverse;
+        }
+
+        .glitch-text::after {
+            left: -2px;
+            text-shadow: -2px 0 #00ffff;
+            clip: rect(85px, 550px, 140px, 0);
+            animation: glitch-anim2 5s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim {
+            0% { clip: rect(42px, 9999px, 44px, 0); }
+            5% { clip: rect(12px, 9999px, 59px, 0); }
+            10% { clip: rect(48px, 9999px, 29px, 0); }
+            15% { clip: rect(42px, 9999px, 73px, 0); }
+            20% { clip: rect(63px, 9999px, 27px, 0); }
+            25% { clip: rect(34px, 9999px, 55px, 0); }
+            30% { clip: rect(86px, 9999px, 73px, 0); }
+            35% { clip: rect(20px, 9999px, 20px, 0); }
+            40% { clip: rect(26px, 9999px, 60px, 0); }
+            45% { clip: rect(25px, 9999px, 66px, 0); }
+            50% { clip: rect(57px, 9999px, 98px, 0); }
+            55% { clip: rect(5px, 9999px, 46px, 0); }
+            60% { clip: rect(82px, 9999px, 31px, 0); }
+            65% { clip: rect(54px, 9999px, 27px, 0); }
+            70% { clip: rect(28px, 9999px, 99px, 0); }
+            75% { clip: rect(45px, 9999px, 69px, 0); }
+            80% { clip: rect(23px, 9999px, 85px, 0); }
+            85% { clip: rect(54px, 9999px, 84px, 0); }
+            90% { clip: rect(45px, 9999px, 47px, 0); }
+            95% { clip: rect(37px, 9999px, 20px, 0); }
+            100% { clip: rect(4px, 9999px, 91px, 0); }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #00ff00;
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff00, transparent);
+            animation: headerScan 3s linear infinite;
+        }
+
+        @keyframes headerScan {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .terminal-output {
+            background: rgba(0, 20, 0, 0.8);
+            border: 1px solid #00ff00;
+            border-radius: 2px;
+            padding: 20px;
+            margin: 20px 0;
+            max-height: 500px;
+            overflow-y: auto;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .terminal-line {
+            margin-bottom: 5px;
+            opacity: 0;
+            animation: typeIn 0.1s forwards;
+        }
+
+        @keyframes typeIn {
+            to { opacity: 1; }
+        }
+
+        .prompt { color: #00ff00; }
+        .command { color: #ffffff; }
+        .output { color: #cccccc; }
+        .success { color: #00ff00; }
+        .warning { color: #ffff00; }
+        .error { color: #ff0000; }
+        .highlight { color: #00ffff; }
+
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #00ff00;
+            border-radius: 2px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 12px;
+            margin-bottom: 5px;
+            color: #00ff00;
+            text-transform: uppercase;
+        }
+
+        select, input, button {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 10px;
+            font-size: 12px;
+            border-radius: 2px;
+        }
+
+        button {
+            background: linear-gradient(45deg, #003300, #006600);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: linear-gradient(45deg, #006600, #009900);
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        button:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .stat-box {
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #00ff00;
+            padding: 15px;
+            text-align: center;
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00ffff;
+            margin: 5px 0;
+        }
+
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #003300, #00ff00);
+            width: 0%;
+            transition: width 0.3s;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: progressShine 2s infinite;
+        }
+
+        @keyframes progressShine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .result-item {
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #00ff00;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 2px;
+            border-left: 3px solid #00ff00;
+        }
+
+        .result-item.found {
+            background: rgba(0, 255, 0, 0.1);
+            border-left: 3px solid #00ff00;
+            animation: foundPulse 2s infinite;
+        }
+
+        @keyframes foundPulse {
+            0%, 100% { box-shadow: 0 0 5px #00ff00; }
+            50% { box-shadow: 0 0 20px #00ff00; }
+        }
+
+        .crypto-rates {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .rate-box {
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #00ff00;
+            padding: 15px;
+            text-align: center;
+            border-radius: 2px;
+        }
+
+        .blink {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .access-denied {
+            color: #ff0000;
+            text-align: center;
+            font-size: 24px;
+            margin: 20px 0;
+            animation: denyShake 0.5s;
+        }
+
+        @keyframes denyShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="scanlines"></div>
+    
+    <div class="container">
+        <div class="header">
+            <h1 class="glitch-text" data-text="BLOCKCHAIN SECURITY ANALYZER v3.14">BLOCKCHAIN SECURITY ANALYZER v3.14</h1>
+            <p>[PROTOTYPE] - FOR EDUCATIONAL AND RESEARCH PURPOSES ONLY</p>
+            <div class="blink">⚠️ UNAUTHORIZED ACCESS DETECTED ⚠️</div>
+        </div>
+
+        <div class="terminal-output" id="terminal">
+            <div class="terminal-line">
+                <span class="prompt">root@blockchain-analyzer:~$</span>
+                <span class="command">./initialize_system.sh</span>
+            </div>
+            <div class="terminal-line output">Initializing Blockchain Security Analyzer...</div>
+            <div class="terminal-line output">Loading BIP39 Wordlist from GitHub...</div>
+            <div class="terminal-line output">Connecting to Blockchain APIs...</div>
+            <div class="terminal-line output">Establishing Secure Connection...</div>
+            <div class="terminal-line success">System Ready. Type 'start_scan' to begin.</div>
+        </div>
+
+        <div class="control-panel">
+            <div class="control-group">
+                <label for="cryptoType">TARGET NETWORK</label>
+                <select id="cryptoType">
+                    <option value="bitcoin">BITCOIN (BTC)</option>
+                    <option value="ethereum">ETHEREUM (ETH)</option>
+                    <option value="litecoin">LITECOIN (LTC)</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="wordCount">SEED STRENGTH</label>
+                <select id="wordCount">
+                    <option value="12">12-WORD (STANDARD)</option>
+                    <option value="24">24-WORD (MAXIMUM)</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="maxAttempts">MAX ATTEMPTS</label>
+                <input type="number" id="maxAttempts" value="1000" min="100" max="10000">
+            </div>
+            
+            <div class="control-group">
+                <label for="timeLimit">TIME LIMIT (SEC)</label>
+                <input type="number" id="timeLimit" value="120" min="30" max="600">
+            </div>
+            
+            <button onclick="startHackerScan()" id="startBtn">INITIATE SCAN</button>
+            <button onclick="stopHackerScan()" id="stopBtn" disabled>ABORT MISSION</button>
+            <button onclick="clearTerminal()" id="clearBtn">CLEAR TERMINAL</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div>ATTEMPTS</div>
+                <div class="stat-value" id="attemptCount">0</div>
+                <div>WALLETS SCANNED</div>
+            </div>
+            <div class="stat-box">
+                <div>SPEED</div>
+                <div class="stat-value" id="speed">0/sec</div>
+                <div>WALLETS PER SECOND</div>
+            </div>
+            <div class="stat-box">
+                <div>SUCCESS RATE</div>
+                <div class="stat-value" id="successRate">0.000000%</div>
+                <div>FUNDS DETECTED</div>
+            </div>
+            <div class="stat-box">
+                <div>API CALLS</div>
+                <div class="stat-value" id="apiCalls">0</div>
+                <div>NETWORK REQUESTS</div>
+            </div>
+        </div>
+
+        <div class="progress-container">
+            <div>MISSION PROGRESS:</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+        </div>
+
+        <div class="crypto-rates">
+            <div class="rate-box">
+                <div>BITCOIN</div>
+                <div class="stat-value" id="btcPrice">LOADING...</div>
+                <div>LIVE PRICE</div>
+            </div>
+            <div class="rate-box">
+                <div>ETHEREUM</div>
+                <div class="stat-value" id="ethPrice">LOADING...</div>
+                <div>LIVE PRICE</div>
+            </div>
+            <div class="rate-box">
+                <div>TOTAL COMBINATIONS</div>
+                <div class="stat-value" id="totalCombinations">5.44e+39</div>
+                <div>SEARCH SPACE</div>
+            </div>
+            <div class="rate-box">
+                <div>PROBABILITY</div>
+                <div class="stat-value" id="probability">1 in ∞</div>
+                <div>SUCCESS CHANCE</div>
+            </div>
+        </div>
+
+        <div class="terminal-output" id="results" style="max-height: 400px;">
+            <div class="terminal-line output">Scan results will appear here...</div>
+        </div>
+    </div>
+
+    <script src="hacker-scanner.js"></script>
+</body>
+  </html>
